@@ -1,0 +1,111 @@
+---
+title: "Postwork sesión 8"
+output: html_notebook
+---
+
+Un centro de salud nutricional está interesado en analizar estadística y probabilísticamente los patrones de gasto en alimentos saludables y no saludables en los hogares mexicanos con base en su nivel socioeconómico, en si el hogar tiene recursos financieros extra al ingreso y en si presenta o no inseguridad alimentaria. Además, está interesado en un modelo que le permita identificar los determinantes socioeconómicos de la inseguridad alimentaria.
+
+La base de datos es un extracto de la Encuesta Nacional de Salud y Nutrición (2012) levantada por el Instituto Nacional de Salud Pública en México. La mayoría de las personas afirman que los hogares con menor nivel socioeconómico tienden a gastar más en productos no saludables que las personas con mayores niveles socioeconómicos y que esto, entre otros determinantes, lleva a que un hogar presente cierta inseguridad alimentaria.
+
+La base de datos contiene las siguientes variables:
+
+- `nse5f` (nivel socieconómico del hogar): 1 "Bajo", 2 "Medio bajo", 3 "Medio", 4 "Medio alto", 5 "Alto"
+- `area` (zona geográfica): 0 "Zona urbana", 1 "Zona rural"
+- `numpeho` (número de personas en el hogar)
+- `refin` (recursos financieros distintos al ingreso laboral): 0 "no", 1 "sí"
+- `edadjef` (edad del jefe/a de familia)
+- `sexoje` (sexo del jefe/a de familia): 0 "Hombre", 1 "Mujer"
+- `añosedu` (años de educación del jefe de familia)
+- `ln_als` (logarítmo natural del gasto en alimentos saludables)
+- `ln_alns` (logarítmo natural del gasto en alimentos no saludables)
+- `IA` (inseguridad alimentaria en el hogar): 0 "No presenta IA", 1 "Presenta IA"
+
+``` r
+df <- read.csv("https://raw.githubusercontent.com/beduExpert/Programacion-R-Santander-2022/main/Sesion-08/Postwork/inseguridad_alimentaria_bedu.csv")
+```
+
+1) Plantea el problema del caso
+2) Realiza un análisis descriptivo de la información
+3) Calcula probabilidades que nos permitan entender el problema en México
+4) Plantea hipótesis estadísticas y concluye sobre ellas para entender el problema en México
+5) Estima un modelo de regresión, lineal o logístico, para identificiar los determinanres de la inseguridad alimentaria en México
+6) Escribe tu análisis en un archivo README.md y tu código en un script de R y publica ambos en un repositorio de Github.
+
+> NOTA: Todo tu planteamiento deberá estár correctamente desarrollado y deberás analizar e interpretar todos tus resultados para poder dar una conclusión final al problema planteado.
+
+## 1) Planteamiento del problema del caso
+
+### Objetivos
+
+- Analizar patrones de gasto en alimentos saludables y no saludables en familias mexicanas con base en:
+
+    - el nivel socioeconómico
+    - disponibilidad de recursos financieros adicionales al ingreso
+    - presencia de inseguridad alimentaria
+
+- Elaborar un modelo que prediga la posibilidad de presentar inseguridad alimentaria (IA) con base en las variables disponibles en el extracto de la Encuesta Nacional de Salud y Nutrición 2012 (ENSANUT 2012)
+
+## 2) Análisis descriptivo de la información
+
+Obtención de los datos:
+```{r}
+url <- "https://raw.githubusercontent.com/beduExpert/Programacion-R-Santander-2022/main/Sesion-08/Postwork/inseguridad_alimentaria_bedu.csv"
+datos <- read.csv(url, encoding = "UTF-8")
+head(datos)
+```
+Para obtener un resumen estadístico de los datos, se convierten en factores las variables discretas.
+```{r}
+datos$nse5f <- factor(datos$nse5f,
+                      levels = 1:5,
+                      labels = c("Bajo", "Medio bajo", "Medio", "Medio alto", "Alto"),
+                      ordered = TRUE)
+datos$area <- factor(datos$area,
+                     levels = 0:1,
+                     labels = c("Zona urbana", "Zona rural"))
+datos$refin <- factor(datos$refin,
+                      levels = 0:1,
+                      labels = c("no", "sí"))
+datos$sexojef <- factor(datos$sexojef,
+                       levels = 0:1,
+                       labels = c("Hombre", "Mujer"))
+datos$IA <- factor(datos$IA,
+                   levels = 0:1,
+                   labels = c("No presenta IA", "Presenta IA"))
+```
+
+Y, enseguida, el resumen estadístico.
+
+```{r}
+nrow(datos)
+summary(datos)
+sum(complete.cases(datos))
+```
+La base de datos tiene 40,809 registros, de los cuales 20,280, poco menos de la mitad,  tienen información completa para todos los campos. 
+
+```{r}
+barplot(c(nrow(datos), sum(complete.cases(datos))),
+        names.arg = c("Total de registros", "Registros completos"))
+```
+
+Con una mezcla más o menos homogénea de niveles socioeconómicos, con una tendencia ligeramente decreciente conforme aumenta el nivel socioeconómico, con entre 7,000 y 9,000 hogares por nivel. 
+
+```{r}
+plot(datos$nse5f)
+```
+
+La muestra es mayoritariamente de hogares urbanos, aproximadamente en dos terceras partes.
+
+```{r}
+plot(datos$area)
+```
+
+El número de personas por hogar varía entre 1 y 19, con una media de 3.9 y una mediana de 4. El 75% de los hogares es habitado por 5 personas o menos y el 50% por entre 3 y 5 personas. Asimismo, el 95% de los hogares tiene 7 o menos habitantes, siendo la excepción los valores mayores.
+
+```{r}
+hist(datos$numpeho,
+     main = "Número de personas en el hogar",
+     xlab = "",
+ylab = "")
+quantile(datos$numpeho, probs = 0.95)
+```
+
