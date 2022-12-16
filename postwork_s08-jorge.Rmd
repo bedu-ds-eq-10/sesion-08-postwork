@@ -1,6 +1,10 @@
 ---
 title: "Postwork sesión 8"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
 ---
 
 Un centro de salud nutricional está interesado en analizar estadística y probabilísticamente los patrones de gasto en alimentos saludables y no saludables en los hogares mexicanos con base en su nivel socioeconómico, en si el hogar tiene recursos financieros extra al ingreso y en si presenta o no inseguridad alimentaria. Además, está interesado en un modelo que le permita identificar los determinantes socioeconómicos de la inseguridad alimentaria.
@@ -47,6 +51,12 @@ df <- read.csv("https://raw.githubusercontent.com/beduExpert/Programacion-R-Sant
 
 ## 2) Análisis descriptivo de la información
 
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+```
+
+
 Obtención de los datos:
 ```{r}
 url <- "https://raw.githubusercontent.com/beduExpert/Programacion-R-Santander-2022/main/Sesion-08/Postwork/inseguridad_alimentaria_bedu.csv"
@@ -83,8 +93,9 @@ sum(complete.cases(datos))
 La base de datos tiene 40,809 registros, de los cuales 20,280, poco menos de la mitad,  tienen información completa para todos los campos. 
 
 ```{r}
-barplot(c(nrow(datos), sum(complete.cases(datos))),
-        names.arg = c("Total de registros", "Registros completos"))
+barplot(c(100, sum(complete.cases(datos))/nrow(datos)*100),
+        names.arg = c("Total de registros", "Registros completos"),
+        ylab = "%")
 ```
 
 Con una mezcla más o menos homogénea de niveles socioeconómicos, con una tendencia ligeramente decreciente conforme aumenta el nivel socioeconómico, con entre 7,000 y 9,000 hogares por nivel. 
@@ -96,7 +107,13 @@ plot(datos$nse5f)
 La muestra es mayoritariamente de hogares urbanos, aproximadamente en dos terceras partes.
 
 ```{r}
-plot(datos$area)
+# plot(datos$area)
+
+ggplot(datos, aes(x = area)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)*100)) +
+  labs(title = "Hogares por zona geográfica",
+       x = "", y = "%")
+
 ```
 
 El número de personas por hogar varía entre 1 y 19, con una media de 3.9 y una mediana de 4. El 75% de los hogares es habitado por 5 personas o menos y el 50% por entre 3 y 5 personas. Asimismo, el 95% de los hogares tiene 7 o menos habitantes, siendo la excepción los valores mayores.
@@ -108,4 +125,85 @@ hist(datos$numpeho,
 ylab = "")
 quantile(datos$numpeho, probs = 0.95)
 ```
+
+En cuanto a recursos financieros adicionales al ingreso, únicamente uno de cada cinco hogares disponen de ellos.
+
+```{r}
+#plot(datos$refin, 
+#     main = "Disponibilidad de recursos financieros distintos al ingreso")
+
+ggplot(datos, aes(x = refin)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)*100)) +
+  labs(title = "Hogares por disponibilidad de recursos financieros distintos al ingreso",
+       x = "", y = "%")
+```
+
+El promedio de edad del jefe de familia es de 49 años, y la mediana, 47. La edad mínima reportada es de 18 años, y la máxima, de 111 (un posible error de captura). El 50% de las edades de los jefes de familia se ubica entre 37 y 60 años. El 75% de los jefes de familia son menores de 60 años, y el 90%, menores de 72. Para 5,017 de los hogares (12%) no se cuenta con este dato.
+
+
+```{r}
+hist(datos$edadjef,
+     main = "Edad del jefe de familia",
+     ylab = "")
+quantile(datos$edadjef, probs = 0.90, na.rm = TRUE)
+```
+
+En alrededor del 65% de los hogares, el jefe de familia es hombre, mientras que en poco más de un 20% es mujer. Aproximadamente un 10% no proporcionó este dato.
+
+```{r}
+# plot(datos$sexojef)
+
+ggplot(datos, aes(x = sexojef)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)*100)) +
+  labs(title = "Hogares por sexo del jefe de familia",
+       x = "", y = "%")
+```
+
+El promedio de años de estudio del jefe del hogar es 10.4 (preparatoria inconclusa), y la mediana, 9 (secundaria completa). Solo el 25% de los jefes de familia cuentan con estudios superiores a la preparatoria. El máximo de años de estudio para el jefe del hogar es de 24.
+
+Es de observarse en el histograma que la mayoría de los datos se ubican entre los 8 y 12 años de estudio, con solo pocos datos fuera de este rango.
+
+```{r}
+hist(datos$añosedu,
+     main = "Años de estudio del jefe del hogar",
+     xlab = "",
+     ylab = "")
+```
+
+En lo que respecta a la insuficiencia alimentaria, una cuarta parte de los hogares la presentan.
+
+```{r}
+ggplot(datos, aes(x = IA)) +
+  geom_bar(aes(y = (..count..)/sum(..count..)*100)) +
+  labs(title = "Hogares por presencia de insuficiencia alimentaria",
+       x = "", y = "%")
+```
+
+Se observa que los hogares gastan más, en promedio, en alimentos saludables que lo que gastan en alimentos no saludables (en, aproximadamente, casi un orden de magnitud, siete veces más). 
+
+La dispersión del gasto en alimentos saludables es menor que la del gasto en alimentos no saludables. Para los alimentos saludables, el tercer cuartil gasta 2.33 veces más que el primero, mientras que para los alimentos no saludables, el tercer cuartil representa un gasto 38 veces mayor que el primero.
+
+```{r}
+als <- data.frame(val = datos$ln_als)
+alns <- data.frame(val = datos$ln_alns)
+als$Alimentos <- "Saludables"
+alns$Alimentos <- "No saludables"
+d <- rbind(als, alns)
+ggplot(d, aes(exp(val), fill = Alimentos)) + 
+  geom_histogram(alpha = 0.5, position = "identity") +
+  scale_x_log10() +
+  labs(title = "Hogares por gasto en alimentos saludables y no saludables",
+       x = "Gasto en alimentos",
+       y = "")
+#hist(datos$ln_als, col = "blue", alpha = 0.4)
+#hist(datos$ln_alns, col = "red", alpha = 0.4, add=T)
+```
+
+```{r}
+exp(mean(datos$ln_als, na.rm = TRUE))
+exp(quantile(datos$ln_als, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+exp(mean(datos$ln_alns, na.rm = TRUE))
+exp(quantile(datos$ln_alns, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
+```
+
 
