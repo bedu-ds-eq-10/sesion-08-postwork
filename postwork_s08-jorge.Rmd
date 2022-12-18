@@ -18,7 +18,7 @@ La base de datos contiene las siguientes variables:
 - `numpeho` (número de personas en el hogar)
 - `refin` (recursos financieros distintos al ingreso laboral): 0 "no", 1 "sí"
 - `edadjef` (edad del jefe/a de familia)
-- `sexoje` (sexo del jefe/a de familia): 0 "Hombre", 1 "Mujer"
+- `sexojef` (sexo del jefe/a de familia): 0 "Hombre", 1 "Mujer"
 - `añosedu` (años de educación del jefe de familia)
 - `ln_als` (logarítmo natural del gasto en alimentos saludables)
 - `ln_alns` (logarítmo natural del gasto en alimentos no saludables)
@@ -32,7 +32,7 @@ df <- read.csv("https://raw.githubusercontent.com/beduExpert/Programacion-R-Sant
 2) Realiza un análisis descriptivo de la información
 3) Calcula probabilidades que nos permitan entender el problema en México
 4) Plantea hipótesis estadísticas y concluye sobre ellas para entender el problema en México
-5) Estima un modelo de regresión, lineal o logístico, para identificiar los determinanres de la inseguridad alimentaria en México
+5) Estima un modelo de regresión, lineal o logístico, para identificar los determinanres de la inseguridad alimentaria en México
 6) Escribe tu análisis en un archivo README.md y tu código en un script de R y publica ambos en un repositorio de Github.
 
 > NOTA: Todo tu planteamiento deberá estár correctamente desarrollado y deberás analizar e interpretar todos tus resultados para poder dar una conclusión final al problema planteado.
@@ -143,7 +143,9 @@ El promedio de edad del jefe de familia es de 49 años, y la mediana, 47. La eda
 
 ```{r}
 hist(datos$edadjef,
+     freq = FALSE,
      main = "Edad del jefe de familia",
+     xlab = "",
      ylab = "")
 quantile(datos$edadjef, probs = 0.90, na.rm = TRUE)
 ```
@@ -206,4 +208,152 @@ exp(mean(datos$ln_alns, na.rm = TRUE))
 exp(quantile(datos$ln_alns, probs = c(0.25, 0.5, 0.75), na.rm = TRUE))
 ```
 
+## 3) Algunas probabilidades para un mejor entendimiento del problema
 
+Ya en la sección anterior se hizo una descripción estadística de los datos que, desde el punto de vista frecuentista, es una estimación de las probabilidades asociadas a la población de la que se extrajo la muestra.
+
+La similitud en el número de hogares en cada nivel socioeconómico hace suponer que no se trata de una muestra aleatoria, ya que, de ser ese el caso, se esperaría encontrar una cantidad mucho menor de hogares en los niveles alto y medio alto. Al parecer, se trató de encuestar una cantidad igual o similar de hogares en cada uno de los niveles socioeconómicos, aleatorizando la toma de muestra dentro de cada nivel pero no entre los niveles. Esto se podría corroborar en las notas técnicas de la Encuesta.
+
+Se esperaría que la probabilidad de que un hogar presente inseguridad alimentaria (IA) disminuiría conforme aumente el nivel socioeconómico. Así parece comportarse la muestra pero llama la atención la prevalencia de la IA incluso en el nivel socioeconómico alto, donde la probabilidad de que un hogar presente IA es cercana al 50%.
+
+```{r}
+ggplot(datos, aes(x = IA)) +
+  geom_bar(aes(y = (..count..)/tapply(..count.., ..PANEL.., sum)[..PANEL..]*100)) +
+  facet_grid(cols = vars(nse5f)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Presencia de inseguridad alimentaria por nivel socioeconómico",
+       x = "", y = "%")
+```
+
+Igualmente, es más probable que un hogar presente IA en las zonas rurales (80%) que en las urbanas (70%).
+
+```{r}
+ggplot(datos, aes(x = IA)) +
+  geom_bar(aes(y = (..count..)/tapply(..count.., ..PANEL.., sum)[..PANEL..]*100)) +
+  facet_grid(cols = vars(area)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Presencia de inseguridad alimentaria por área geográfica",
+       x = "", y = "%")
+```
+
+La probabilidad de que un hogar presente IA no parece depender de que el jefe de familia sea hombre o mujer.
+
+```{r}
+ggplot(datos, aes(x = IA)) +
+  geom_bar(aes(y = (..count..)/tapply(..count.., ..PANEL.., sum)[..PANEL..]*100)) +
+  facet_grid(cols = vars(sexojef)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Presencia de inseguridad alimentaria por sexo del jefe de familia",
+       x = "", y = "%")
+```
+
+## 5) Modelo de regresión
+
+Dado que el problema es uno de clasificación (presencia o ausencia de inseguridad alimentaria), se utilizará un modelo de regresión logística. Se planea incluir, inicialmente, todas las variables.
+
+En la sección relativa al análisis descriptivo de la información ya se mencionaron los valores faltantes en ciertas variables. La biblioteca `Amelia` permite visualizar gráficamente la densidad de dichos valores faltantes.
+
+```{r}
+install.packages("Amelia")
+library(Amelia)
+missmap(datos,
+        main = "Mapa de valores faltantes (NA)")
+```
+La variable `ln_alns`, que representa el logaritmo natural del gasto en alimentos no saludables, presenta la mayor densidad de datos faltantes (17,504 registros), por lo que es candidata a eliminarla del análisis. Sin embargo, por lo que representa, se considera que puede ser un buen predictor de inseguridad alimentaria, por lo que se decide conservarlo.
+
+El modelo inicial considera todos los factores con sus interacciones de segundo grado.
+
+```{r}
+m1 <- glm(IA ~ (nse5f + area + numpeho + refin + edadjef + sexojef + añosedu + ln_als + ln_alns)^2,
+         data = datos,
+         family = binomial)
+summary(m1)
+```
+
+Se encuentran los siguientes factores con influencia significativa ($\alpha = 0.05$):
+
+- Nivel socioeconómico
+- Área geográfica
+- Número de personas en el hogar
+- Años de educación del jefe de familia
+
+Así como las siguientes interacciones:
+
+- Nivel socioeconómico con:
+    - Número de personas en el hogar
+    - Edad del jefe de familia
+    - Gasto en alimentos saludables
+    - Gasto en alimentos no saludables
+
+- Área geográfica con:
+    - Edad del jefe de familia
+    
+- Número de personas con:
+    - Años de educación del jefe de familia
+    - Gasto en alimentos saludables
+    
+- Edad del jefe de familia con:
+    - Sexo del jefe de familia
+    
+Por lo que se desechan las siguientes variables, para las que no se encontraron efectos significativos:
+
+- Disponibilidad de recursos financieros distintos al ingreso
+
+Es de observar que los siguietes factores no presentan un efecto significativo como elementos de primer orden (sin interacción) aunque si lo presentan en el segundo orden (en interacción con otros):
+
+- Edad del jefe de familia
+- Sexo del jefe de familia
+- Años de educación del jefe de familia
+- Gasto en alimentos saludables
+- Gasto en alimentos no saludables
+
+Como comparación, se analiza un modelo exclusivamente de primer orden:
+
+```{r}
+m0 <- glm(IA ~ nse5f + area + numpeho + refin + edadjef + sexojef + añosedu + ln_als + ln_alns,
+         data = datos,
+         family = binomial)
+summary(m0)
+```
+
+En el modelo de primer orden, la disponibilidad de recursos financieros distintos del ingreso sí es un factor significativo, y el sexo y los años de educación del jefe de familia y el gasto en alimentos saludables y no saludables son significativos por sí mismos. Esto se explica porque la variabilidad observada es mejor explicada por las interacciones de los factores una vez que se toma en cuenta.
+
+Descartando los factores e interacciones que se encontraron no significativas, tenemos el siguiente modelo:
+
+```{r}
+m2 <- glm(IA ~ nse5f + area + numpeho + añosedu +
+            nse5f:numpeho + nse5f:edadjef + nse5f:ln_als + nse5f:ln_alns +
+            area:edadjef +
+            numpeho:añosedu + numpeho:ln_als +
+            edadjef:sexojef,
+          data = datos,
+          family = binomial)
+summary(m2)
+```
+
+En este nuevo modelo, pierde significancia el termino de interacción entre el área geográfica y la edad del jefe de familia, por lo que se descarta:
+
+```{r}
+m3 <- update(m2, ~ . - area:edadjef)
+summary(m3)
+```
+
+En este último modelo, todos los términos tienen una significancia superior al 0.05.
+
+Es de hacer notar que ciertos niveles socioeconómicos (variable categórica) no inciden sobre la posibilidad de que el hogar presente inseguridad alimentaria.
+
+Los coeficientes estimados representan los momios asociados a las variables (posibilidad de que se presente inseguridad alimentaria dividida entre la posibilidad de que no se presente). Un momio negativo representa una disminución de la probabilidad, y uno positivo, un incremento en la misma.
+
+Así, por ejemplo, vivir en una zona rural disminuye el momio de incidencia de la inseguridad alimentaria en un factor de 0.1157, mientras que por cada persona adicional que viva en un hogar, el momio se incrementa en un factor de 0.47.
+
+## 6) Conclusiones
+
+- Sorpresivamente, el incremento en el nivel socioeconómico del hogar aumenta la probabilidad de que se presente inseguridad alimentaria (momio positivo para el contraste cuadrático de nse5f).
+- En los hogares rurales es menos probable que se presente inseguridad alimentaria.
+- El incremento en el número de personas que viven en un hogar aumenta la probabilidad de que se resente inseguridad alimentaria.
+- A mayor grado de estudios del jefe de familia, menor probabilidad de que su hogar presente inseguridad alimentaria.
+- El incremento en la probabilidad de inseguridad alimentaria por el número de personas, se potencia con el incremento en el nivel socioeconómico del hogar (interacción cúbica nse5f.C:numpeho).
+- El incremento en la edad del jefe de familia aumenta la probabilidad de que el hogar presente inseguridad alimentaria en los niveles socioeconómicos bajo y medio, pero la disminuye en el nivel alto.
+- Sorpresivamente también, el incremento en el gasto en alimentos *saludables* aumenta la probabilidad de inseguridad alimentaria en hogares de nivel socieconómico medio bajo y medio, mientras que el aumento en el gasto en alimentos *no saludables* lo disminuye en los niveles socioeconómicos medio y alto.
+- No están claros los efectos de la interacción entre el número de personas en el hogar y los años de educación del jefe de familia y el gasto en alimentos saludables.
+- A mayor edad del jefe de familia, se incrementa el riesgo de que el hogar presente inseguridad alimentaria cuando el jefe de familia es mujer.
