@@ -61,7 +61,6 @@ df <- read.csv("https://raw.githubusercontent.com/beduExpert/Programacion-R-Sant
 ## 2) Análisis descriptivo de la información
 
 ```{r}
-install.packages("ggplot2")
 library(ggplot2)
 ```
 
@@ -335,7 +334,6 @@ Dado que el problema es uno de clasificación (presencia o ausencia de insegurid
 En la sección relativa al análisis descriptivo de la información ya se mencionaron los valores faltantes en ciertas variables. La biblioteca `Amelia` permite visualizar gráficamente la densidad de dichos valores faltantes.
 
 ```{r}
-install.packages("Amelia")
 library(Amelia)
 missmap(datos,
         main = "Mapa de valores faltantes (NA)")
