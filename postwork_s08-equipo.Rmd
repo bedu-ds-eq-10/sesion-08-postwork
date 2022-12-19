@@ -1,10 +1,10 @@
 ---
 title: "Análisis de los factores que influyen en la inseguridad alimentaria en México"
 output:
+  pdf_document: default
+  html_notebook: default
   html_document:
     df_print: paged
-  html_notebook: default
-  pdf_document: default
 ---
 
 ## Miembros del equipo:
@@ -279,7 +279,7 @@ plot(datos$nse5f, exp(datos$ln_alns),
      ylab = "") 
 ```
 
-Se observa que, por el contrario, el gasto en alimentos no saludables, se incrementa con el NSE. Y lo mismo con el gasto en alimentos saludables.
+Se observa que, por el contrario a lo supuesto, el gasto en alimentos no saludables, se incrementa con el NSE. Y lo mismo con el gasto en alimentos saludables.
 
 ```{r}
 plot(datos$nse5f, exp(datos$ln_als),
@@ -320,11 +320,11 @@ El resultado del ANOVA nos permite concluir que hay diferencia significativa ent
 ```{r}
 tabla_1 <- table(datos$nse5f, datos$IA)
 tabla_1
-plot(tabla_1, col = c("red", "blue")) 
+plot(tabla_1, col = c("red", "blue"), main = "IA por NSE") 
 chisq.test(tabla_1)
 ```
 
-Con un Chi-squared alto y un p-value menor que 0.05, se rechaza la hipotesis nula y se concluye que NSE e IA tienen una relación significativa y, de la gráfica, se observa que la relación es consistente con una disminución el la incidencia de IA conforme aumenta el NSE.
+Con un chi cuadrado alto y un *p*-value menor que 0.05, se rechaza la hipotesis nula y se concluye que NSE e IA tienen una relación significativa y, de la gráfica, se observa que la relación es consistente con una disminución en la incidencia de IA conforme aumenta el NSE.
 
 
 ## 5) Modelo de regresión
